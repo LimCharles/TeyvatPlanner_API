@@ -1,0 +1,95 @@
+scalar DateTime
+
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  password: String!
+  createdAt: DateTime!
+  commissions: [Commission]!
+  domains: [Domain]!
+  weeklyBosses: [WeeklyBoss]!
+  randomQuests: [RandomQuest]!
+}
+
+type Commission {
+  id: ID!
+  user: User!
+  name: String!
+  category: String!
+  completed: Boolean!
+  createdAt: DateTime!
+}
+
+type Domain {
+  id: ID!
+  user: User!
+  name: String!
+  completed: Boolean!
+  createdAt: DateTime!
+}
+
+type WeeklyBoss {
+  id: ID!
+  user: User!
+  name: String!
+  completed: Boolean!
+  createdAt: DateTime!
+}
+
+type RandomQuest {
+  id: ID!
+  user: User!
+  name: String!
+  longitude: Float
+  latitude: Float
+  completed: Boolean!
+  createdAt: DateTime!
+}
+
+type Query {
+  user(id: ID!): User!
+  users: [User]!
+  commission(id: ID!): Commission!
+  commissions: [Commission]!
+  domain(id: ID!): Domain!
+  domains: [Domain]!
+  weeklyBoss(id: ID!): WeeklyBoss!
+  weeklyBosses: [WeeklyBoss]!
+  randomQuest(id: ID!): RandomQuest!
+  randomQuests: [RandomQuest]!
+}
+
+type Mutation {
+  createUser(username: String!, email: String!, password: String!): User!
+  createCommission(name: String!, category: String!): Commission!
+  createDomain(name: String!): Domain!
+  createWeeklyBoss(name: String!): WeeklyBoss!
+  createRandomQuest(
+    name: String!
+    longitude: Float
+    latitude: Float
+  ): RandomQuest!
+  updateUser(id: ID!, username: String, email: String, password: String): User!
+  updateCommission(
+    id: ID!
+    name: String
+    category: String
+    completed: Boolean
+  ): Commission!
+  updateDomain(id: ID!, name: String, completed: Boolean): Domain!
+  updateWeeklyBoss(id: ID!, name: String, completed: Boolean): WeeklyBoss!
+  updateRandomQuest(
+    id: ID!
+    name: String
+    longitude: Float
+    latitude: Float
+    completed: Boolean
+  ): RandomQuest!
+  deleteUser(id: ID!): String!
+  deleteCommission(id: ID!): String!
+  deleteDomain(id: ID!): String!
+  deleteWeeklyBoss(id: ID!): String!
+  deleteRandomQuest(id: ID!): String!
+  login(email: String!, password: String!): String!
+}
