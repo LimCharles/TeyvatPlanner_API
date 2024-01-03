@@ -49,7 +49,6 @@ type RandomQuest {
 
 type Query {
   user(id: ID!): User!
-  users: [User]!
   commission(id: ID!): Commission!
   commissions: [Commission]!
   domain(id: ID!): Domain!

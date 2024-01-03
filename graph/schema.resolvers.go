@@ -104,7 +104,7 @@ func (r *mutationResolver) CreateWeeklyBoss(ctx context.Context, name string) (*
 
 	err := r.DB.QueryRow(
 		ctx,
-		"INSERT INTO weekly_bosses (name, userID) VALUES ($1, $2) RETURNING id, name, completed",
+		"INSERT INTO weeklybosses (name, userID) VALUES ($1, $2) RETURNING id, name, completed",
 		name, authUser.ID,
 	).Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed)
 
@@ -132,7 +132,7 @@ func (r *mutationResolver) CreateRandomQuest(ctx context.Context, name string, l
 
 	err := r.DB.QueryRow(
 		ctx,
-		"INSERT INTO random_quests (name, longitude, latitude, userID) VALUES ($1, $2, $3, $4) RETURNING id, name, longitude, latitude, completed",
+		"INSERT INTO randomquests (name, longitude, latitude, userID) VALUES ($1, $2, $3, $4) RETURNING id, name, longitude, latitude, completed",
 		name, longitude, latitude, authUser.ID,
 	).Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed)
 
@@ -192,16 +192,6 @@ func (r *mutationResolver) UpdateCommission(ctx context.Context, id string, name
 		return nil, fmt.Errorf("Access Denied")
 	}
 
-	var commissionUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&commissionUserID)
-	if err != nil {
-		return nil, fmt.Errorf("Commission not found")
-	}
-
-	if authUser.ID != commissionUserID {
-		return nil, fmt.Errorf("Access Denied")
-	}
-
 	var commission model.Commission
 
 	query := `
@@ -210,6 +200,7 @@ func (r *mutationResolver) UpdateCommission(ctx context.Context, id string, name
 			category = COALESCE($2, category),
 			completed = COALESCE($3, completed)
 		WHERE id = $4
+		AND userID = $5
 		AND (
 			($1 IS NOT NULL AND $1 IS DISTINCT FROM name) OR
 			($2 IS NOT NULL AND $2 IS DISTINCT FROM category) OR
@@ -218,10 +209,10 @@ func (r *mutationResolver) UpdateCommission(ctx context.Context, id string, name
 		RETURNING id, name, category, completed
 	`
 
-	err = r.DB.QueryRow(
+	err := r.DB.QueryRow(
 		ctx,
 		query,
-		name, category, completed, id,
+		name, category, completed, id, authUser.ID,
 	).Scan(&commission.ID, &commission.Name, &commission.Category, &commission.Completed)
 
 	if err != nil {
@@ -244,16 +235,6 @@ func (r *mutationResolver) UpdateDomain(ctx context.Context, id string, name *st
 		return nil, fmt.Errorf("Access Denied")
 	}
 
-	var domainUserID string
-    err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&domainUserID)
-    if err != nil {
-        return nil, fmt.Errorf("Domain not found")
-    }
-
-    if authUser.ID != domainUserID {
-        return nil, fmt.Errorf("Access Denied")
-    }
-
 	var domain model.Domain
 
 	query := `
@@ -261,6 +242,7 @@ func (r *mutationResolver) UpdateDomain(ctx context.Context, id string, name *st
 			name = COALESCE($1, name),
 			completed = COALESCE($2, completed)
 		WHERE id = $3
+		AND userID = $4
 		AND (
 			($1 IS NOT NULL AND $1 IS DISTINCT FROM name) OR
 			($2 IS NOT NULL AND $2 IS DISTINCT FROM completed)
@@ -268,10 +250,10 @@ func (r *mutationResolver) UpdateDomain(ctx context.Context, id string, name *st
 		RETURNING id, name, completed
 	`
 
-	err = r.DB.QueryRow(
+	err := r.DB.QueryRow(
 		ctx,
 		query,
-		name, completed, id,
+		name, completed, id, authUser.ID,
 	).Scan(&domain.ID, &domain.Name, &domain.Completed)
 
 	if err != nil {
@@ -294,23 +276,14 @@ func (r *mutationResolver) UpdateWeeklyBoss(ctx context.Context, id string, name
 		return nil, fmt.Errorf("Access Denied")
 	}
 
-	var weeklyBossUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&weeklyBossUserID)
-	if err != nil {
-		return nil, fmt.Errorf("Weekly Boss not found")
-	}
-
-	if authUser.ID != weeklyBossUserID {
-		return nil, fmt.Errorf("Access Denied")
-	}
-	
 	var weeklyBoss model.WeeklyBoss
 
 	query := `
-		UPDATE weekly_bosses SET
+		UPDATE weeklybosses SET
 			name = COALESCE($1, name),
 			completed = COALESCE($2, completed)
 		WHERE id = $3
+		AND userID = $4
 		AND (
 			($1 IS NOT NULL AND $1 IS DISTINCT FROM name) OR
 			($2 IS NOT NULL AND $2 IS DISTINCT FROM completed)
@@ -318,10 +291,10 @@ func (r *mutationResolver) UpdateWeeklyBoss(ctx context.Context, id string, name
 		RETURNING id, name, completed
 	`
 
-	err = r.DB.QueryRow(
+	err := r.DB.QueryRow(
 		ctx,
 		query,
-		name, completed, id,
+		name, completed, id, authUser.ID,
 	).Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed)
 
 	if err != nil {
@@ -344,25 +317,16 @@ func (r *mutationResolver) UpdateRandomQuest(ctx context.Context, id string, nam
 		return nil, fmt.Errorf("Access Denied")
 	}
 
-	var randomQuestUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&randomQuestUserID)
-	if err != nil {
-		return nil, fmt.Errorf("Random Quest not found")
-	}
-
-	if authUser.ID != randomQuestUserID {
-		return nil, fmt.Errorf("Access Denied")
-	}
-	
 	var randomQuest model.RandomQuest
 
 	query := `
-		UPDATE random_quests SET
+		UPDATE randomquests SET
 			name = COALESCE($1, name),
 			longitude = COALESCE($2, longitude),
 			latitude = COALESCE($3, latitude),
 			completed = COALESCE($4, completed)
 		WHERE id = $5
+		AND userID = $6
 		AND (
 			($1 IS NOT NULL AND $1 IS DISTINCT FROM name) OR
 			($2 IS NOT NULL AND $2 IS DISTINCT FROM longitude) OR
@@ -372,10 +336,10 @@ func (r *mutationResolver) UpdateRandomQuest(ctx context.Context, id string, nam
 		RETURNING id, name, longitude, latitude, completed
 	`
 
-	err = r.DB.QueryRow(
+	err := r.DB.QueryRow(
 		ctx,
 		query,
-		name, longitude, latitude, completed, id,
+		name, longitude, latitude, completed, id, authUser.ID,
 	).Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed)
 
 	if err != nil {
@@ -412,118 +376,78 @@ func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (string, e
 
 // DeleteCommission is the resolver for the deleteCommission field.
 func (r *mutationResolver) DeleteCommission(ctx context.Context, id string) (string, error) {
-	authUser := auth.ForContext(ctx)
-	if authUser == nil {
-		return "", fmt.Errorf("Access Denied")
-	}
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return "", fmt.Errorf("Access Denied")
+    }
 
-	var commissionUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&commissionUserID)
-	if err != nil {
-		return "", fmt.Errorf("Commission not found")
-	}
+    cmdTag, err := r.DB.Exec(ctx, `DELETE FROM commissions WHERE id = $1 AND userID = $2`, id, authUser.ID)
+    if err != nil {
+        return "", err
+    }
 
-	if authUser.ID != commissionUserID {
-		return "", fmt.Errorf("Access Denied")
-	}
+    if cmdTag.RowsAffected() == 0 {
+        return "", fmt.Errorf("No commission found with ID %s or access denied", id)
+    }
 
-	cmdTag, err := r.DB.Exec(ctx, `DELETE FROM commissions WHERE id = $1`, id)
-	if err != nil {
-		return "", err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return "", fmt.Errorf("no commission found with ID %s", id)
-	}
-
-	return id, nil
+    return id, nil
 }
 
 // DeleteDomain is the resolver for the deleteDomain field.
 func (r *mutationResolver) DeleteDomain(ctx context.Context, id string) (string, error) {
-	authUser := auth.ForContext(ctx)
-	if authUser == nil {
-		return "", fmt.Errorf("Access Denied")
-	}
-
-	var domainUserID string
-    err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&domainUserID)
-    if err != nil {
-        return "", fmt.Errorf("Domain not found")
-    }
-
-    if authUser.ID != domainUserID {
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
         return "", fmt.Errorf("Access Denied")
     }
 
-	cmdTag, err := r.DB.Exec(ctx, `DELETE FROM domains WHERE id = $1`, id)
-	if err != nil {
-		return "", err
-	}
+    cmdTag, err := r.DB.Exec(ctx, `DELETE FROM domains WHERE id = $1 AND userID = $2`, id, authUser.ID)
+    if err != nil {
+        return "", err
+    }
 
-	if cmdTag.RowsAffected() == 0 {
-		return "", fmt.Errorf("no domain found with ID %s", id)
-	}
+    if cmdTag.RowsAffected() == 0 {
+        return "", fmt.Errorf("No domain found with ID %s or access denied", id)
+    }
 
-	return id, nil
+    return id, nil
 }
 
 // DeleteWeeklyBoss is the resolver for the deleteWeeklyBoss field.
 func (r *mutationResolver) DeleteWeeklyBoss(ctx context.Context, id string) (string, error) {
-	authUser := auth.ForContext(ctx)
-	if authUser == nil {
-		return "", fmt.Errorf("Access Denied")
-	}
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return "", fmt.Errorf("Access Denied")
+    }
 
-	var weeklyBossUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&weeklyBossUserID)
-	if err != nil {
-		return "", fmt.Errorf("Weekly Boss not found")
-	}
+    cmdTag, err := r.DB.Exec(ctx, `DELETE FROM weeklybosses WHERE id = $1 AND userID = $2`, id, authUser.ID)
+    if err != nil {
+        return "", err
+    }
 
-	if authUser.ID != weeklyBossUserID {
-		return "", fmt.Errorf("Access Denied")
-	}
+    if cmdTag.RowsAffected() == 0 {
+        return "", fmt.Errorf("No weekly boss found with ID %s or access denied", id)
+    }
 
-	cmdTag, err := r.DB.Exec(ctx, `DELETE FROM weekly_bosses WHERE id = $1`, id)
-	if err != nil {
-		return "", err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return "", fmt.Errorf("no weekly boss found with ID %s", id)
-	}
-
-	return id, nil
+    return id, nil
 }
 
 // DeleteRandomQuest is the resolver for the deleteRandomQuest field.
 func (r *mutationResolver) DeleteRandomQuest(ctx context.Context, id string) (string, error) {
-	authUser := auth.ForContext(ctx)
-	if authUser == nil {
-		return "", fmt.Errorf("Access Denied")
-	}
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return "", fmt.Errorf("Access Denied")
+    }
 
-	var randomQuestUserID string
-	err := r.DB.QueryRow(ctx, "SELECT userID FROM commissions WHERE id = $1", id).Scan(&randomQuestUserID)
-	if err != nil {
-		return "", fmt.Errorf("Random Quest not found")
-	}
+    cmdTag, err := r.DB.Exec(ctx, `DELETE FROM randomquests WHERE id = $1 AND userID = $2`, id, authUser.ID)
+    if err != nil {
+        return "", err
+    }
 
-	if authUser.ID != randomQuestUserID {
-		return "", fmt.Errorf("Access Denied")
-	}
+    if cmdTag.RowsAffected() == 0 {
+        return "", fmt.Errorf("No random quest found with ID %s or access denied", id)
+    }
 
-	cmdTag, err := r.DB.Exec(ctx, `DELETE FROM random_quests WHERE id = $1`, id)
-	if err != nil {
-		return "", err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return "", fmt.Errorf("no random quest found with ID %s", id)
-	}
-
-	return id, nil
+    return id, nil
 }
 
 // Login is the resolver for the login field.
@@ -563,17 +487,118 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 
 // User is the resolver for the user field.
 func (r *queryResolver) User(ctx context.Context, id string) (*model.User, error) {
-	panic(fmt.Errorf("not implemented: User - user"))
-}
+	authUser := auth.ForContext(ctx)
+	if authUser == nil {
+		return nil, fmt.Errorf("Access Denied")
+	}
 
-// Users is the resolver for the users field.
-func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
-	panic(fmt.Errorf("not implemented: Users - users"))
+	var user model.User
+	err := r.DB.QueryRow(
+		ctx,
+		"SELECT id, username, email, password, createdAt FROM users WHERE id = $1",
+		id,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.CreatedAt)
+
+	commissionRows, err := r.DB.Query(ctx, "SELECT id, name, category, completed FROM commissions WHERE userID = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	defer commissionRows.Close()
+	for commissionRows.Next() {
+		var commission model.Commission
+		if err := commissionRows.Scan(&commission.ID, &commission.Name, &commission.Category, &commission.Completed); err != nil {
+			return nil, err
+		}
+		user.Commissions = append(user.Commissions, &commission)
+	}
+
+	if err := commissionRows.Err(); err != nil {
+		return nil, err
+	}
+
+	domainRows, err := r.DB.Query(ctx, "SELECT id, name, completed, createdAt FROM domains WHERE userID = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	defer domainRows.Close()
+	for domainRows.Next() {
+		var domain model.Domain
+		if err := domainRows.Scan(&domain.ID, &domain.Name, &domain.Completed, &domain.CreatedAt); err != nil {
+			return nil, err
+		}
+		user.Domains = append(user.Domains, &domain)
+	}
+
+	if err := domainRows.Err(); err != nil {
+		return nil, err
+	}
+
+	weeklyBossRows, err := r.DB.Query(ctx, "SELECT id, name, completed, createdAt FROM weeklybosses WHERE userID = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	defer weeklyBossRows.Close()
+	for weeklyBossRows.Next() {
+		var weeklyBoss model.WeeklyBoss
+		if err := weeklyBossRows.Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed, &weeklyBoss.CreatedAt); err != nil {
+			return nil, err
+		}
+		user.WeeklyBosses = append(user.WeeklyBosses, &weeklyBoss)
+	}
+
+	if err := weeklyBossRows.Err(); err != nil {
+		return nil, err
+	}
+
+	randomQuestRows, err := r.DB.Query(ctx, "SELECT id, name, longitude, latitude, completed, createdAt FROM randomquests WHERE userID = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	defer randomQuestRows.Close()
+	for randomQuestRows.Next() {
+		var randomQuest model.RandomQuest
+		if err := randomQuestRows.Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed, &randomQuest.CreatedAt); err != nil {
+			return nil, err
+		}
+		user.RandomQuests = append(user.RandomQuests, &randomQuest)
+	}
+
+	if err := randomQuestRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // Commission is the resolver for the commission field.
 func (r *queryResolver) Commission(ctx context.Context, id string) (*model.Commission, error) {
-	panic(fmt.Errorf("not implemented: Commission - commission"))
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return nil, fmt.Errorf("Access Denied")
+    }
+
+    var commission model.Commission
+    err := r.DB.QueryRow(
+        ctx,
+        "SELECT id, name, category, completed, createdAt FROM commissions WHERE id = $1 AND userID = $2",
+        id, authUser.ID,
+    ).Scan(&commission.ID, &commission.Name, &commission.Category, &commission.Completed, &commission.CreatedAt)
+
+    if err != nil {
+        return nil, err
+    }
+
+    commission.User = &model.User{
+        ID:       authUser.ID,
+        Username: authUser.Username,
+        Email:    authUser.Email,
+    }
+
+    return &commission, nil
 }
 
 // Commissions is the resolver for the commissions field.
@@ -583,7 +608,29 @@ func (r *queryResolver) Commissions(ctx context.Context) ([]*model.Commission, e
 
 // Domain is the resolver for the domain field.
 func (r *queryResolver) Domain(ctx context.Context, id string) (*model.Domain, error) {
-	panic(fmt.Errorf("not implemented: Domain - domain"))
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return nil, fmt.Errorf("Access Denied")
+    }
+
+    var domain model.Domain
+    err := r.DB.QueryRow(
+        ctx,
+        "SELECT id, name, completed, createdAt FROM domains WHERE id = $1 AND userID = $2",
+        id, authUser.ID,
+    ).Scan(&domain.ID, &domain.Name, &domain.Completed, &domain.CreatedAt)
+
+    if err != nil {
+        return nil, err
+    }
+
+    domain.User = &model.User{
+        ID:       authUser.ID,
+        Username: authUser.Username,
+        Email:    authUser.Email,
+    }
+
+    return &domain, nil
 }
 
 // Domains is the resolver for the domains field.
@@ -593,7 +640,29 @@ func (r *queryResolver) Domains(ctx context.Context) ([]*model.Domain, error) {
 
 // WeeklyBoss is the resolver for the weeklyBoss field.
 func (r *queryResolver) WeeklyBoss(ctx context.Context, id string) (*model.WeeklyBoss, error) {
-	panic(fmt.Errorf("not implemented: WeeklyBoss - weeklyBoss"))
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return nil, fmt.Errorf("Access Denied")
+    }
+
+    var weeklyBoss model.WeeklyBoss
+    err := r.DB.QueryRow(
+        ctx,
+        "SELECT id, name, completed, createdAt FROM weeklybosses WHERE id = $1 AND userID = $2",
+        id, authUser.ID,
+    ).Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed, &weeklyBoss.CreatedAt)
+
+    if err != nil {
+        return nil, err
+    }
+
+    weeklyBoss.User = &model.User{
+        ID:       authUser.ID,
+        Username: authUser.Username,
+        Email:    authUser.Email,
+    }
+
+    return &weeklyBoss, nil
 }
 
 // WeeklyBosses is the resolver for the weeklyBosses field.
@@ -603,7 +672,29 @@ func (r *queryResolver) WeeklyBosses(ctx context.Context) ([]*model.WeeklyBoss, 
 
 // RandomQuest is the resolver for the randomQuest field.
 func (r *queryResolver) RandomQuest(ctx context.Context, id string) (*model.RandomQuest, error) {
-	panic(fmt.Errorf("not implemented: RandomQuest - randomQuest"))
+    authUser := auth.ForContext(ctx)
+    if authUser == nil {
+        return nil, fmt.Errorf("Access Denied")
+    }
+
+    var randomQuest model.RandomQuest
+    err := r.DB.QueryRow(
+        ctx,
+        "SELECT id, name, longitude, latitude, completed, createdAt FROM randomquests WHERE id = $1 AND userID = $2",
+        id, authUser.ID,
+    ).Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed, &randomQuest.CreatedAt)
+
+    if err != nil {
+        return nil, err
+    }
+
+    randomQuest.User = &model.User{
+        ID:       authUser.ID,
+        Username: authUser.Username,
+        Email:    authUser.Email,
+    }
+
+    return &randomQuest, nil
 }
 
 // RandomQuests is the resolver for the randomQuests field.
@@ -619,3 +710,13 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
+	panic(fmt.Errorf("not implemented: Users - users"))
+}
