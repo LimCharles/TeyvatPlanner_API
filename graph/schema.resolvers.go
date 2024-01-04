@@ -29,7 +29,6 @@ func (r *mutationResolver) CreateUser(ctx context.Context, username string, emai
 		"INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, password",
 		username, email, string(hashedPassword),
 	).Scan(&user.ID, &user.Username, &user.Email, &user.Password)
-
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +50,6 @@ func (r *mutationResolver) CreateCommission(ctx context.Context, name string, ca
 		"INSERT INTO commissions (name, category, userID) VALUES ($1, $2, $3) RETURNING id, name, category, completed",
 		name, category, authUser.ID,
 	).Scan(&commission.ID, &commission.Name, &commission.Category, &commission.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +77,6 @@ func (r *mutationResolver) CreateDomain(ctx context.Context, name string) (*mode
 		"INSERT INTO domains (name, userID) VALUES ($1, $2) RETURNING id, name, completed",
 		name, authUser.ID,
 	).Scan(&domain.ID, &domain.Name, &domain.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +104,6 @@ func (r *mutationResolver) CreateWeeklyBoss(ctx context.Context, name string) (*
 		"INSERT INTO weeklybosses (name, userID) VALUES ($1, $2) RETURNING id, name, completed",
 		name, authUser.ID,
 	).Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +131,6 @@ func (r *mutationResolver) CreateRandomQuest(ctx context.Context, name string, l
 		"INSERT INTO randomquests (name, longitude, latitude, userID) VALUES ($1, $2, $3, $4) RETURNING id, name, longitude, latitude, completed",
 		name, longitude, latitude, authUser.ID,
 	).Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +172,6 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, id string, username *
 		query,
 		username, email, password, id,
 	).Scan(&user.ID, &user.Username, &user.Email, &user.Password)
-
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +212,6 @@ func (r *mutationResolver) UpdateCommission(ctx context.Context, id string, name
 	if err != nil {
 		return nil, err
 	}
-
 	commission.User = &model.User{
 		ID:       authUser.ID,
 		Username: authUser.Username,
@@ -255,7 +248,6 @@ func (r *mutationResolver) UpdateDomain(ctx context.Context, id string, name *st
 		query,
 		name, completed, id, authUser.ID,
 	).Scan(&domain.ID, &domain.Name, &domain.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +288,6 @@ func (r *mutationResolver) UpdateWeeklyBoss(ctx context.Context, id string, name
 		query,
 		name, completed, id, authUser.ID,
 	).Scan(&weeklyBoss.ID, &weeklyBoss.Name, &weeklyBoss.Completed)
-
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +332,6 @@ func (r *mutationResolver) UpdateRandomQuest(ctx context.Context, id string, nam
 		query,
 		name, longitude, latitude, completed, id, authUser.ID,
 	).Scan(&randomQuest.ID, &randomQuest.Name, &randomQuest.Longitude, &randomQuest.Latitude, &randomQuest.Completed)
-
 	if err != nil {
 		return nil, err
 	}
