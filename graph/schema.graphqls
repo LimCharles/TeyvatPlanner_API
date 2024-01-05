@@ -91,4 +91,5 @@ type Mutation {
   deleteWeeklyBoss(id: ID!): String!
   deleteRandomQuest(id: ID!): String!
   login(email: String!, password: String!): String!
+  requestAccessToken(refreshToken: String!): String!
 }
