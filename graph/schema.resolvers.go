@@ -6,7 +6,11 @@ package graph
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"io"
+	"math/big"
 	"os"
 	"teyvat_planner_api/auth"
 	"teyvat_planner_api/graph/model"
@@ -14,6 +18,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 )
 
 // CreateUser is the resolver for the createUser field.
@@ -451,7 +456,6 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 		"SELECT id, password FROM users WHERE email = $1",
 		email,
 	).Scan(&userID, &hashedPassword)
-
 	if err != nil {
 		return "", err
 	}
@@ -492,8 +496,8 @@ func (r *mutationResolver) RequestAccessToken(ctx context.Context, refreshToken 
 	}
 
 	accessTokenClaims := &jwt.StandardClaims{
-		Issuer:  claims.Issuer,
-		Subject: claims.Subject,
+		Issuer:    claims.Issuer,
+		Subject:   claims.Subject,
 		ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
 	}
 
@@ -505,6 +509,188 @@ func (r *mutationResolver) RequestAccessToken(ctx context.Context, refreshToken 
 	}
 
 	return signedAccessToken, nil
+}
+
+// GoogleLogin is the resolver for the googleLogin field.
+func (r *mutationResolver) GoogleLogin(ctx context.Context, token string) (string, error) {
+	conf := &oauth2.Config{
+        ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+        ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+        Endpoint: oauth2.Endpoint{
+            AuthURL: "https://accounts.google.com/o/oauth2/auth",
+            TokenURL: "https://oauth2.googleapis.com/token",
+        },
+        RedirectURL: "YOUR_REDIRECT_URL", 
+    }
+
+	oauth2Token := &oauth2.Token{
+        AccessToken: token,
+    }
+
+	client := conf.Client(ctx, oauth2Token)
+
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+    if err != nil {
+        return "", fmt.Errorf("Error fetching user information")
+    }
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", fmt.Errorf("Error reading response")
+    }
+	
+	var userInfo struct {
+        Email string `json:"email"`
+    }
+	
+    err = json.Unmarshal(data, &userInfo) 
+	if err != nil {
+        return "", fmt.Errorf("Error parsing user information")
+    }
+
+    if userInfo.Email == "" {
+        return "", fmt.Errorf("Email not found in user info")
+    }
+	
+	var userID string
+	err = r.DB.QueryRow(
+		ctx,
+		"SELECT id FROM users WHERE email = $1",
+		userInfo.Email,
+	).Scan(&userID)
+	if userID == "" {
+		const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
+		var password string
+		for i := 0; i < 32; i++ {
+			num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+			if err != nil {
+				return "", err
+			}
+			password += string(letters[num.Int64()])
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return "", err
+		}
+
+		err = r.DB.QueryRow(
+			ctx,
+			"INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id",
+			userInfo.Email, userInfo.Email, hashedPassword,
+		).Scan(&userID)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+
+	claims := &jwt.StandardClaims{
+		Issuer:  "TeyvatPlanner",
+		Subject: userID,
+	}
+
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	refreshToken, err := unsignedToken.SignedString([]byte(os.Getenv("TP_REFRESH_TOKEN_SECRET")))
+	if err != nil {
+		return "", err
+	}
+
+	return refreshToken, nil
+}
+
+// DiscordLogin is the resolver for the discordLogin field.
+func (r *mutationResolver) DiscordLogin(ctx context.Context, token string) (string, error) {
+	conf := &oauth2.Config{
+        ClientID: os.Getenv("DISCORD_CLIENT_ID"),
+        ClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
+        Endpoint: oauth2.Endpoint{
+            AuthURL: "https://discord.com/oauth2/authorize",
+            TokenURL: "https://discord.com/api/oauth2/token",
+        },
+        RedirectURL: "YOUR_REDIRECT_URL", 
+    }
+
+	oauth2Token := &oauth2.Token{
+        AccessToken: token,
+    }
+
+	client := conf.Client(ctx, oauth2Token)
+
+	resp, err := client.Get("https://discord.com/api/users/@me")
+    if err != nil {
+        return "", fmt.Errorf("Error fetching user information")
+    }
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", fmt.Errorf("Error reading response")
+    }
+	
+	var userInfo struct {
+        Email string `json:"email"`
+    }
+	
+    err = json.Unmarshal(data, &userInfo) 
+	if err != nil {
+        return "", fmt.Errorf("Error parsing user information")
+    }
+
+    if userInfo.Email == "" {
+        return "", fmt.Errorf("Email not found in user info")
+    }
+
+	var userID string
+	err = r.DB.QueryRow(
+		ctx,
+		"SELECT id FROM users WHERE email = $1",
+		userInfo.Email,
+	).Scan(&userID)
+	if userID == "" {
+		const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
+		var password string
+		for i := 0; i < 32; i++ {
+			num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+			if err != nil {
+				return "", err
+			}
+			password += string(letters[num.Int64()])
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return "", err
+		}
+
+		err = r.DB.QueryRow(
+			ctx,
+			"INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id",
+			userInfo.Email, userInfo.Email, hashedPassword,
+		).Scan(&userID)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+
+	claims := &jwt.StandardClaims{
+		Issuer:  "TeyvatPlanner",
+		Subject: userID,
+	}
+
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	refreshToken, err := unsignedToken.SignedString([]byte(os.Getenv("TP_REFRESH_TOKEN_SECRET")))
+	if err != nil {
+		return "", err
+	}
+
+	return refreshToken, nil
 }
 
 // User is the resolver for the user field.

@@ -92,4 +92,6 @@ type Mutation {
   deleteRandomQuest(id: ID!): String!
   login(email: String!, password: String!): String!
   requestAccessToken(refreshToken: String!): String!
+  googleLogin(token: String!): String!
+  discordLogin(token: String!): String!
 }
